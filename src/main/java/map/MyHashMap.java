@@ -4,10 +4,8 @@ import javax.annotation.concurrent.NotThreadSafe;
 import java.util.AbstractCollection;
 import java.util.AbstractSet;
 import java.util.Collection;
-import java.util.ConcurrentModificationException;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Set;
 
@@ -16,80 +14,15 @@ public class MyHashMap<K, V> implements Map<K, V> {
     private static final int INITIAL_CAPACITY = 16;
     private static final double LOAD_FACTOR = 0.75;
 
-    private Entry<K, V>[] table;
-    private int size;
-    private int modCount = 0;
+    MyEntry<K, V>[] table;
+    int size;
+    int modCount = 0;
 
     private int hash(Object key) {
         if (key == null) return 0;
         return (key.hashCode() & 0x7fffffff) % table.length;
     }
 
-    private static class Entry<K, V> implements Map.Entry<K, V> {
-        K key;
-        V value;
-        int distanceFromInitialBucket;
-
-        Entry(K key, V value, int dib) {
-            this.key = key;
-            this.value = value;
-            this.distanceFromInitialBucket = dib;
-        }
-
-        @Override public K getKey() { return key; }
-        @Override public V getValue() { return value; }
-        @Override public V setValue(V value) {
-            V old = this.value;
-            this.value = value;
-            return old;
-        }
-    }
-
-    private abstract class HashIterator<T> implements Iterator<T> {
-        int expectedModCount = modCount;
-        int currentIndex = -1;
-        int nextIndex = 0;
-        int count = 0;
-
-        private void checkModification() {
-            if (modCount != expectedModCount) {
-                throw new ConcurrentModificationException();
-            }
-        }
-
-        @Override
-        public boolean hasNext() {
-            checkModification();
-            return count < size;
-        }
-
-        Entry<K, V> nextEntry() {
-            checkModification();
-            if (!hasNext()) throw new NoSuchElementException();
-
-            while (table[nextIndex] == null) nextIndex++;
-
-            currentIndex = nextIndex;
-            nextIndex++;
-            count++;
-            return table[currentIndex];
-        }
-
-        @Override
-        public void remove() {
-            checkModification();
-            if (currentIndex == -1) throw new IllegalStateException();
-
-            MyHashMap.this.shiftBack(currentIndex);
-            size--;
-            count--;
-            modCount++;
-            expectedModCount++;
-
-            nextIndex = currentIndex;
-            currentIndex = -1;
-        }
-    }
 
     @Override
     public Set<Map.Entry<K, V>> entrySet() {
@@ -99,7 +32,7 @@ public class MyHashMap<K, V> implements Map<K, V> {
 
             @Override
             public Iterator<Map.Entry<K, V>> iterator() {
-                return new HashIterator<Map.Entry<K, V>>() {
+                return new MyHashIterator<Map.Entry<K, V>, K, V>(MyHashMap.this) {
                     @Override
                     public Map.Entry<K, V> next() {
                         return nextEntry();
@@ -109,6 +42,7 @@ public class MyHashMap<K, V> implements Map<K, V> {
         };
     }
 
+
     @Override
     public Set<K> keySet() {
         return new AbstractSet<K>() {
@@ -117,7 +51,7 @@ public class MyHashMap<K, V> implements Map<K, V> {
 
             @Override
             public Iterator<K> iterator() {
-                return new HashIterator<K>() {
+                return new MyHashIterator<K, K, V>(MyHashMap.this) {
                     @Override
                     public K next() {
                         return nextEntry().key;
@@ -138,7 +72,7 @@ public class MyHashMap<K, V> implements Map<K, V> {
 
             @Override
             public Iterator<V> iterator() {
-                return new HashIterator<V>() {
+                return new MyHashIterator<V, K, V>(MyHashMap.this) {
                     @Override
                     public V next() {
                         return nextEntry().value;
@@ -202,7 +136,7 @@ public class MyHashMap<K, V> implements Map<K, V> {
     @SuppressWarnings("unchecked")
     public V put(Object key, Object value) {
         if (table == null) {
-            table = (Entry<K, V>[]) new Entry[INITIAL_CAPACITY];
+            table = (MyEntry<K, V>[]) new MyEntry[INITIAL_CAPACITY];
         }
 
         if (size >= table.length * LOAD_FACTOR) {
@@ -238,7 +172,7 @@ public class MyHashMap<K, V> implements Map<K, V> {
         return null;
     }
 
-    private void shiftBack(int index) {
+    void shiftBack(int index) {
         int nextIndex = (index + 1) % table.length;
 
         while (table[nextIndex] != null && table[nextIndex].distanceFromInitialBucket > 0) {
@@ -275,10 +209,10 @@ public class MyHashMap<K, V> implements Map<K, V> {
 
     @SuppressWarnings("unchecked")
     private void resize(int newCapacity) {
-        Entry<K, V>[] oldTable = table;
-        table = (Entry<K, V>[]) new Entry[newCapacity];
+        MyEntry<K, V>[] oldTable = table;
+        table = (MyEntry<K, V>[]) new MyEntry[newCapacity];
 
-        for (Entry<K, V> entry : oldTable) {
+        for (MyEntry<K, V> entry : oldTable) {
             if (entry != null) {
                 putInternal(entry.key, entry.value, true);
             }
@@ -288,7 +222,7 @@ public class MyHashMap<K, V> implements Map<K, V> {
     private V putInternal(K key, V value, boolean isResizing) {
         if (!isResizing) modCount++;
 
-        Entry<K, V> current = new Entry<>(key, value, 0);
+        MyEntry<K, V> current = new MyEntry<>(key, value, 0);
         int index = hash(key);
 
         while (true) {
@@ -308,7 +242,7 @@ public class MyHashMap<K, V> implements Map<K, V> {
 
             // Логика Robin Hood: если текущий элемент "прошел" больше, чем тот, что в ячейке
             if (current.distanceFromInitialBucket > table[index].distanceFromInitialBucket) {
-                Entry<K, V> temp = table[index];
+                MyEntry<K, V> temp = table[index];
                 table[index] = current;
                 current = temp;
             }

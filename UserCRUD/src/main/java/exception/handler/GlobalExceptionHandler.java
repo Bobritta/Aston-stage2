@@ -1,5 +1,6 @@
 package exception.handler;
 
+import exception.ApplicationException;
 import exception.DataAccessException;
 import exception.UniqueConstraintViolationException;
 import jakarta.persistence.EntityNotFoundException;
@@ -9,21 +10,21 @@ import org.slf4j.LoggerFactory;
 public class GlobalExceptionHandler {
     private static final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
-    public static void handle(Runnable action) {
+    public static <T> T handle(java.util.function.Supplier<T> action) {
         try {
-            action.run();
+            return action.get();
         } catch (UniqueConstraintViolationException e) {
-            logger.warn("Нарушение уникальности: {}", e.getConstraintName());
-            System.err.println("Ошибка: Запись с такими данными уже существует.");
+            logger.warn("Нарушение уникальности в БД: constraint={}", e.getConstraintName());
+            throw new ApplicationException("Данные уже существуют", 409);
         } catch (EntityNotFoundException e) {
-            logger.warn("Сущность не найдена: {}", e.getMessage());
-            System.err.println("Ошибка: Данные не найдены.");
+            logger.warn("Объект не найден: {}", e.getMessage());
+            throw new ApplicationException("Запрашиваемый ресурс не найден", 404);
         } catch (DataAccessException e) {
-            logger.error("Критический сбой данных: ", e);
-            System.err.println("Внутренняя ошибка системы.");
+            logger.error("Ошибка уровня доступа к данным (Hibernate/JDBC): ", e);
+            throw new ApplicationException("Внутренняя ошибка базы данных", 500);
         } catch (Exception e) {
-            logger.error("Непредвиденная системная ошибка: ", e);
-            System.err.println("Произошла неизвестная ошибка.");
+            logger.error("Непредвиденное исключение: ", e);
+            throw new ApplicationException("Произошла системная ошибка", 500);
         }
     }
 }

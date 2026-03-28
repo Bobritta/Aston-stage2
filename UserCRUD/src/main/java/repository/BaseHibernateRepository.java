@@ -1,7 +1,11 @@
 package repository;
 
+import exception.handler.GlobalExceptionHandler;
+import jakarta.persistence.EntityNotFoundException;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import util.HibernateUtil;
 
 import java.util.List;
@@ -10,6 +14,7 @@ import java.util.Optional;
 public abstract class BaseHibernateRepository<T, ID> implements DataRepository<T, ID> {
     private final Class<T> entityClass;
     private final SessionFactory sessionFactory = HibernateUtil.getSessionFactory();
+    private static final Logger logger = LoggerFactory.getLogger(BaseHibernateRepository.class);
 
     protected BaseHibernateRepository(Class<T> entityClass) {
         this.entityClass = entityClass;
@@ -25,10 +30,13 @@ public abstract class BaseHibernateRepository<T, ID> implements DataRepository<T
     }
 
     @Override
-    public void deleteById(ID id) {
-        getSession().createMutationQuery("delete from " + entityClass.getName() + " where id = :id")
-                .setParameter("id", id)
-                .executeUpdate();
+    public T deleteById(ID id) {
+        T entity = findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Запись с id " + id + " не найдена для удаления"));
+        getSession().remove(entity);
+
+        logger.debug("Сущность {} с id {} успешно помечена на удаление", entityClass.getSimpleName(), id);
+        return entity;
     }
 
     @Override

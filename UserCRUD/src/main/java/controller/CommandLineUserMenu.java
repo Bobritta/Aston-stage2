@@ -1,9 +1,12 @@
 package controller;
 
+import exception.ApplicationException;
 import exception.UniqueConstraintViolationException;
 import exception.handler.GlobalExceptionHandler;
 import model.UserCreateDTO;
 import model.UserResponseDTO;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import service.UserService;
 import service.UserServiceImpl;
 
@@ -15,12 +18,16 @@ public class CommandLineUserMenu {
     private final UserService userService = new UserServiceImpl();
     private final Scanner scanner = new Scanner(System.in);
 
+    private static final Logger logger = LoggerFactory.getLogger(CommandLineUserMenu.class);
+
     public void start() {
+        logger.info("Приложение запущено");
         System.out.println(ConsoleColors.CYAN + "=== User Service CLI ===" + ConsoleColors.RESET);
 
         while (true) {
             printMenu();
             String choice = scanner.nextLine();
+            logger.debug("Пользователь выбрал пункт меню: {}", choice);
 
             GlobalExceptionHandler.handle(() -> {
                 switch (choice) {
@@ -28,11 +35,16 @@ public class CommandLineUserMenu {
                     case "2" -> handleFindAll();
                     case "3" -> handleFindById();
                     case "4" -> handleFindByEmail();
-                    case "5" -> handleDelete();
-                    case "6" -> handleUpdate();
-                    case "0" -> System.exit(0);
+                    case "5" -> handleFindByUsername();
+                    case "6" -> handleDelete();
+                    case "7" -> handleUpdate();
+                    case "0" -> {
+                        logger.info("Завершение работы пользователем");
+                        System.exit(0);
+                    }
                     default -> System.out.println(ConsoleColors.RED.wrap("Неверный ввод!"));
                 }
+                return null;
             });
         }
     }
@@ -43,8 +55,9 @@ public class CommandLineUserMenu {
         System.out.println("2. Показать всех");
         System.out.println("3. Найти по ID");
         System.out.println("4. Найти по email");
-        System.out.println("5. Удалить пользователя");
-        System.out.println("6. Обновить пользователя");
+        System.out.println("5. Найти по имени пользователя");
+        System.out.println("6. Удалить пользователя");
+        System.out.println("7. Обновить пользователя");
         System.out.println("0. Выйти");
         System.out.print("> ");
     }
@@ -54,8 +67,8 @@ public class CommandLineUserMenu {
         while (!success) {
             try {
                 UserCreateDTO dto = readDto();
-                userService.createUser(dto);
-                System.out.println(ConsoleColors.GREEN.wrap("Успешно создано!"));
+                UserResponseDTO responseDTO = userService.createUser(dto);
+                System.out.println(ConsoleColors.GREEN.wrap("Успешно создан пользователь с ID: " + responseDTO.id()));
                 success = true;
             } catch (IllegalArgumentException | UniqueConstraintViolationException e) {
                 System.out.println(ConsoleColors.RED.wrap("Ошибка в данных: " + e.getMessage()));
@@ -67,32 +80,27 @@ public class CommandLineUserMenu {
     private void handleFindById() {
         System.out.print("Введите ID: ");
         long id = Long.parseLong(scanner.nextLine());
-
-        userService.findById(id).ifPresentOrElse(
-                user -> System.out.println(ConsoleColors.BLUE.wrap(user.toString())),
-                () -> System.out.println(ConsoleColors.YELLOW.wrap("Пользователь не найден."))
-        );
+        System.out.println(ConsoleColors.BLUE.wrap(userService.findById(id).toString()));
     }
 
     private void handleFindByEmail() {
         System.out.print("Введите Email: ");
         String email = scanner.nextLine();
+        System.out.println(ConsoleColors.BLUE.wrap(userService.findByEmail(email).toString()));
+    }
 
-        userService.findByEmail(email).ifPresentOrElse(
-                user -> System.out.println(ConsoleColors.BLUE.wrap("ID: " + user.id() + " | " + user)),
-                () -> System.out.println(ConsoleColors.YELLOW.wrap("Пользователь с таким email не найден."))
-        );
+    private void handleFindByUsername() {
+        System.out.print("Введите имя пользователя: ");
+        String username = scanner.nextLine();
+        System.out.println(ConsoleColors.BLUE.wrap(userService.findByUsername(username).toString()));
     }
 
     private void handleDelete() {
         System.out.print("Введите ID для удаления: ");
         long id = Long.parseLong(scanner.nextLine());
 
-        if (userService.deleteById(id)) {
-            System.out.println(ConsoleColors.GREEN.wrap("Удаление выполнено."));
-        } else {
-            System.out.println(ConsoleColors.RED.wrap("Удаление невозможно: ID не найден."));
-        }
+        UserResponseDTO deleted = userService.deleteById(id);
+        System.out.println(ConsoleColors.GREEN.wrap("Удален пользователь: " + deleted.name()));
     }
 
     private void handleUpdate() {
@@ -102,9 +110,7 @@ public class CommandLineUserMenu {
 
         if ("email".equalsIgnoreCase(input)) {
             System.out.print("Email для поиска: ");
-            id = userService.findByEmail(scanner.nextLine())
-                    .map(UserResponseDTO::id)
-                    .orElseThrow(() -> new RuntimeException("Пользователь не найден"));
+            id = userService.findByEmail(scanner.nextLine()).id();
             System.out.println(ConsoleColors.CYAN.wrap("Обновляем пользователя с ID: " + id));
         } else {
             id = Long.parseLong(input);
@@ -113,11 +119,9 @@ public class CommandLineUserMenu {
         System.out.println("Введите новые данные:");
         UserCreateDTO dto = readDto();
 
-        if (userService.updateUser(id, dto)) {
-            System.out.println(ConsoleColors.GREEN.wrap("Данные успешно обновлены!"));
-        } else {
-            System.out.println(ConsoleColors.RED.wrap("Ошибка обновления: ID не найден."));
-        }
+
+        UserResponseDTO updated = userService.updateUser(id, dto);
+        System.out.println(ConsoleColors.GREEN.wrap("Обновлен: " + updated.name()));
     }
 
     private UserCreateDTO readDto() {

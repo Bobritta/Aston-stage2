@@ -1,6 +1,6 @@
 package mapper;
 
-import model.User;
+import model.UserEntity;
 import model.UserCreateDTO;
 import model.UserResponseDTO;
 import org.mapstruct.Mapper;
@@ -16,10 +16,10 @@ import java.time.format.DateTimeFormatter;
 public interface UserMapper {
     UserMapper INSTANCE = Mappers.getMapper(UserMapper.class);
 
-    User toEntity(UserCreateDTO dto);
+    UserEntity toEntity(UserCreateDTO dto);
 
     @Mapping(target = "createdAt", source = "createdAt", qualifiedByName = "instantToString")
-    UserResponseDTO toResponseDTO(User user);
+    UserResponseDTO toResponseDTO(UserEntity userEntity);
 
     @Named("instantToString")
     default String instantToString(Instant instant) {

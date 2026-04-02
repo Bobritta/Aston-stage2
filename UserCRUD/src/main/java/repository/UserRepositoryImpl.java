@@ -1,25 +1,25 @@
 package repository;
 
-import model.User;
+import model.UserEntity;
 
 import java.util.Optional;
 
-public class UserRepositoryImpl extends BaseHibernateRepository<User, Long> implements UserRepository {
+public class UserRepositoryImpl extends BaseHibernateRepository<UserEntity, Long> implements UserRepository {
 
     public UserRepositoryImpl() {
-        super(User.class);
+        super(UserEntity.class);
     }
 
     @Override
-    public Optional<User> findByEmail(String email) {
-        return getSession().createQuery("from User where email = :email", User.class)
+    public Optional<UserEntity> findByEmail(String email) {
+        return getSession().createQuery("from User where email = :email", UserEntity.class)
                 .setParameter("email", email)
                 .uniqueResultOptional();
     }
 
     @Override
-    public Optional<User> findByUsername(String username) {
-        return getSession().createQuery("from User where username = :username", User.class)
+    public Optional<UserEntity> findByUsername(String username) {
+        return getSession().createQuery("from User where username = :username", UserEntity.class)
                 .setParameter("username", username)
                 .uniqueResultOptional();
     }

@@ -13,6 +13,14 @@
         <property name="format_sql">true</property>
         <property name="hibernate.hbm2ddl.auto">validate</property>
 
-        <mapping class="model.User"/>
+        <!-- batch-вставка -->
+        <property name="hibernate.jdbc.batch_size">50</property>
+        <!-- Позволяет Hibernate сортировать вставки для оптимизации пакетов -->
+        <property name="hibernate.order_inserts">true</property>
+        <property name="hibernate.order_updates">true</property>
+        <!-- Позволяет использовать новые генераторы ID, которые лучше работают с батчами -->
+        <property name="hibernate.id.new_generator_mappings">true</property>
+
+        <mapping class="model.UserEntity"/>
     </session-factory>
 </hibernate-configuration>

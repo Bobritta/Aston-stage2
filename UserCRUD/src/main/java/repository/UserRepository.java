@@ -1,11 +1,11 @@
 package repository;
 
-import model.User;
+import model.UserEntity;
 
 import java.util.Optional;
 
-public interface UserRepository extends DataRepository<User, Long>{
-    Optional<User> findByEmail(String email);
+public interface UserRepository extends DataRepository<UserEntity, Long>{
+    Optional<UserEntity> findByEmail(String email);
 
-    Optional<User> findByUsername(String username);
+    Optional<UserEntity> findByUsername(String username);
 }

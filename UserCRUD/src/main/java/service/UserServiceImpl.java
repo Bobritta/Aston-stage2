@@ -5,7 +5,7 @@ import exception.UniqueConstraintViolationException;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import mapper.UserMapper;
-import model.User;
+import model.UserEntity;
 import model.UserCreateDTO;
 import model.UserResponseDTO;
 import org.hibernate.HibernateException;
@@ -64,16 +64,16 @@ public class UserServiceImpl implements UserService {
         ValidationUtil.validate(dto);
         logger.debug("Данные валидны для email: {}", dto.email());
 
-        User savedUser = inTransaction("createUser", () -> {
-            User user = userMapper.toEntity(dto);
-            User result = userRepository.save(user);
+        UserEntity savedUserEntity = inTransaction("createUser", () -> {
+            UserEntity userEntity = userMapper.toEntity(dto);
+            UserEntity result = userRepository.save(userEntity);
             logger.debug("Hibernate сохранил сущность с ID: {}", result.getId());
             return result;
         });
         logger.info("Пользователь успешно зарегистрирован: ID={}, Email={}",
-                savedUser.getId(), savedUser.getEmail());
+                savedUserEntity.getId(), savedUserEntity.getEmail());
 
-        return userMapper.toResponseDTO(savedUser);
+        return userMapper.toResponseDTO(savedUserEntity);
     }
 
 
@@ -121,7 +121,7 @@ public class UserServiceImpl implements UserService {
         logger.debug("Запрос на обновление ID {}: {}", id, dto);
         ValidationUtil.validate(dto);
 
-        User updatedUser = inTransaction("updateUser", () ->
+        UserEntity updatedUserEntity = inTransaction("updateUser", () ->
                 userRepository.findById(id)
                         .map(user -> {
                             user.setName(dto.name());
@@ -133,14 +133,14 @@ public class UserServiceImpl implements UserService {
         );
 
         logger.info("Пользователь ID {} успешно обновлен", id);
-        return userMapper.toResponseDTO(updatedUser);
+        return userMapper.toResponseDTO(updatedUserEntity);
     }
 
     @Override
     public UserResponseDTO deleteById(long id) {
         logger.debug("Запрос на удаление ID: {}", id);
 
-        User deletedUser = inTransaction("deleteById", () ->
+        UserEntity deletedUserEntity = inTransaction("deleteById", () ->
                 userRepository.findById(id)
                         .map(user -> {
                             userRepository.deleteById(id);
@@ -150,6 +150,6 @@ public class UserServiceImpl implements UserService {
         );
 
         logger.info("Пользователь ID {} успешно удален", id);
-        return userMapper.toResponseDTO(deletedUser);
+        return userMapper.toResponseDTO(deletedUserEntity);
     }
 }

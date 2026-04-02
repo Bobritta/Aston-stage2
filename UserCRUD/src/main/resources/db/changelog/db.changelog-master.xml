@@ -6,9 +6,16 @@
         http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
 
 
-    <changeSet id="createUsersTable" author="AstonCRUD">
+    <changeSet id="createUsersTable" author="TanyaButler">
+        <validCheckSum>any</validCheckSum>
+        <preConditions onFail="HALT">
+            <not><tableExists tableName="users"/></not>
+        </preConditions>
+
+        <createSequence sequenceName="users_id_seq" startValue="1" incrementBy="50"/>
+
         <createTable tableName="users">
-            <column name="id" type="BIGINT" autoIncrement="true">
+            <column name="id" type="BIGINT">
                 <constraints primaryKey="true" nullable="false"/>
             </column>
             <column name="name" type="VARCHAR(255)"/>

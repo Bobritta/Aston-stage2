@@ -31,11 +31,17 @@ public class HibernateUtil {
                 sessionFactory = config.buildSessionFactory();
             } catch (Exception e) {
                 e.printStackTrace();
-                //todo: логирование ошибки + обработка исключения
                 throw new RuntimeException("Ошибка инициализации Hibernate");
             }
         }
         return sessionFactory;
     }
 
+    // Метод для тестов, чтобы "сбросить" состояние между запусками
+    public static void reset() {
+        if (sessionFactory != null) {
+            sessionFactory.close();
+            sessionFactory = null;
+        }
+    }
 }

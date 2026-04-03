@@ -1,10 +1,10 @@
 package controller;
 
-import exception.ApplicationException;
 import exception.UniqueConstraintViolationException;
 import exception.handler.GlobalExceptionHandler;
 import model.UserCreateDTO;
 import model.UserResponseDTO;
+import model.UserUpdateDTO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import service.UserService;
@@ -117,10 +117,16 @@ public class CommandLineUserMenu {
         }
 
         System.out.println("Введите новые данные:");
-        UserCreateDTO dto = readDto();
+        UserCreateDTO createDto = readDto();
 
+        UserUpdateDTO updateDto = UserUpdateDTO.builder()
+                .id(id)
+                .name(createDto.name())
+                .email(createDto.email())
+                .age(createDto.age())
+                .build();
 
-        UserResponseDTO updated = userService.updateUser(id, dto);
+        UserResponseDTO updated = userService.updateUser(id, updateDto);
         System.out.println(ConsoleColors.GREEN.wrap("Обновлен: " + updated.name()));
     }
 

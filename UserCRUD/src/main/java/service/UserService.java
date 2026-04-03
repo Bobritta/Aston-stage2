@@ -2,6 +2,7 @@ package service;
 
 import model.UserCreateDTO;
 import model.UserResponseDTO;
+import model.UserUpdateDTO;
 
 import java.util.List;
 
@@ -14,7 +15,7 @@ public interface UserService {
 
     List<UserResponseDTO> findAll();
 
-    UserResponseDTO updateUser(long id, UserCreateDTO dto);
+    UserResponseDTO updateUser(long id, UserUpdateDTO dto);
 
     UserResponseDTO deleteById(long id);
 }

@@ -8,6 +8,7 @@ import mapper.UserMapper;
 import model.UserEntity;
 import model.UserCreateDTO;
 import model.UserResponseDTO;
+import model.UserUpdateDTO;
 import org.hibernate.HibernateException;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
@@ -117,20 +118,16 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public UserResponseDTO updateUser(long id, UserCreateDTO dto) {
+    public UserResponseDTO updateUser(long id, UserUpdateDTO dto) {
         logger.debug("Запрос на обновление ID {}: {}", id, dto);
         ValidationUtil.validate(dto);
 
-        UserEntity updatedUserEntity = inTransaction("updateUser", () ->
-                userRepository.findById(id)
-                        .map(user -> {
-                            user.setName(dto.name());
-                            user.setEmail(dto.email());
-                            user.setAge(dto.age());
-                            return userRepository.save(user);
-                        })
-                        .orElseThrow(() -> new EntityNotFoundException("Пользователь с ID " + id + " не найден"))
-        );
+        UserEntity updatedUserEntity = inTransaction("updateUser", () ->{
+                    UserEntity existingUser = userRepository.findById(id)
+                            .orElseThrow(() -> new EntityNotFoundException("Пользователь с ID " + id + " не найден"));
+                    UserEntity updated = userMapper.updateEntity(existingUser, dto);
+                    return userRepository.save(updated);
+                });
 
         logger.info("Пользователь ID {} успешно обновлен", id);
         return userMapper.toResponseDTO(updatedUserEntity);

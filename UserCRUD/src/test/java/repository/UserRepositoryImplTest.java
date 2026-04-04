@@ -9,6 +9,7 @@ import org.hibernate.context.internal.ManagedSessionContext;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import util.BaseIntegrationTest;
 import util.HibernateUtil;
@@ -22,6 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -46,96 +48,190 @@ class UserRepositoryImplTest extends BaseIntegrationTest {
         }
     }
 
-    @Test
-    @DisplayName("Должен вернуть Empty, если пользователь не найден")
-    void shouldReturnEmptyWhenUserNotFound() {
-        Optional<UserEntity> found = userRepository.findByEmail("non-existent@test.com");
-        assertTrue(found.isEmpty());
+    @Nested
+    class WhenUserNotExist {
+
+        @Test
+        @DisplayName("Поиск: по email должен вернуть Empty, если пользователь не найден")
+        void shouldReturnEmptyWhenUserNotFoundByEmail() {
+            Optional<UserEntity> found = userRepository.findByEmail("non-existent@test.com");
+            assertTrue(found.isEmpty());
+        }
+
+        @Test
+        @DisplayName("Поиск: по id должен вернуть Empty, если пользователь не найден")
+        void shouldReturnEmptyWhenUserNotFoundById() {
+            Optional<UserEntity> found = userRepository.findById(55L);
+            assertTrue(found.isEmpty());
+        }
+
+        @Test
+        @DisplayName("Поиск: по имени должен вернуть Empty, если пользователь не найден")
+        void shouldReturnEmptyWhenUserNotFoundByName() {
+            Optional<UserEntity> found = userRepository.findByUsername("non-existent-name");
+            assertTrue(found.isEmpty());
+        }
+
+        @Test
+        @DisplayName("Удаление: должен выбросить исключение, если id не найден")
+        void shouldThrowExceptionWhenUserNotFound() {
+            assertThrows(EntityNotFoundException.class, () -> userRepository.deleteById(1L));
+        }
+
+        @Test
+        @DisplayName("Должен создать пользователя и присвоить id")
+        void shouldSaveNewUser() {
+            UserEntity user = UserEntity.builder()
+                    .name("Ivan")
+                    .email("ivan@mail.com")
+                    .age(25)
+                    .build();
+            assertNull(user.getId());
+            assertNull(user.getCreatedAt());
+
+            user = userRepository.save(user);
+            assertNotNull(user.getId());
+        }
+
+        @Test
+        @DisplayName("Сохранить новых пользователей группой меньше, чем batch без присвоения даты создания")
+        void shouldSave10NewUsersAndFindById() {
+
+            List<UserEntity> users = IntStream.range(0, 10)
+                    .mapToObj(i -> {
+                        return UserEntity.builder()
+                                .name("user" + i)
+                                .email("mail" + i + "@test.com")
+                                .age(i)
+                                .build();
+
+                    })
+                    .toList();
+            userRepository.createAll(users);
+
+            Long firstId = users.get(0).getId();
+            assertNotNull(firstId);
+            assertTrue(userRepository.findById(firstId).isPresent());
+            assertNull(userRepository.findById(firstId).get().getCreatedAt());
+        }
+
+        @Test
+        @DisplayName("Сохранить новых пользователей группой больше, чем batch c flush  присвоением даты создания")
+        void shouldSave60NewUsersFindAll() {
+
+            int count = 60;
+            List<UserEntity> users = IntStream.range(0, count)
+                    .mapToObj(i -> {
+                        return UserEntity.builder()
+                                .name("user" + i)
+                                .email("mail" + i + "@test.com")
+                                .age(i)
+                                .build();
+
+                    })
+                    .toList();
+
+            userRepository.createAll(users);
+
+            Long firstId = users.get(0).getId();
+            assertNotNull(firstId);
+            assertTrue(userRepository.findById(firstId).isPresent());
+            assertNotNull(userRepository.findById(firstId).get().getCreatedAt());
+        }
     }
 
-    @Test
-    @DisplayName("Удаление: должен выбросить исключение, если id не найден")
-    void shouldThrowExceptionWhenUserNotFound() {
+    @Nested
+    class WhenUserExist {
+        UserEntity user;
 
-        assertThrows(EntityNotFoundException.class, () -> userRepository.deleteById(1L));
-    }
+        @BeforeEach
+        void setUp() {
+            user = UserEntity.builder()
+                    .name("Ivan")
+                    .email("ivan@mail.com")
+                    .age(25)
+                    .build();
 
-    @Test
-    @DisplayName("Должен создать пользователя и найти его по email, по имени")
-    void shouldSaveNewUserAndFindByEmail() {
-        UserEntity user = UserEntity.builder()
-                .name("Ivan")
-                .email("ivan@mail.com")
-                .age(25)
-                .build();
+            user = userRepository.save(user);
+        }
 
-        userRepository.save(user);
+        @AfterEach
+        void tearDown() {
+            if (userRepository.findById(user.getId()).isPresent()) {
+                userRepository.deleteById(user.getId());
+            }
+        }
 
-        Optional<UserEntity> byEmail = userRepository.findByEmail("ivan@mail.com");
-        assertTrue(byEmail.isPresent());
-        assertEquals("Ivan", byEmail.get().getName());
+        @Test
+        @DisplayName("Поиск: по email")
+        void shouldFindByEmail() {
+            Optional<UserEntity> byEmail = userRepository.findByEmail("ivan@mail.com");
 
-    }
+            assertTrue(byEmail.isPresent());
+            assertEquals("Ivan", byEmail.get().getName());
+        }
 
-    @Test
-    @DisplayName("Удаление: должен создать пользователя, найти его по имени, затем удалить")
-    void shouldFindByUsernameAndDelete() {
-        UserEntity user = UserEntity.builder()
-                .name("Ivan")
-                .email("ivan@mail.com")
-                .age(25)
-                .build();
+        @Test
+        @DisplayName("Поиск: по имени")
+        void shouldFindByName() {
+            Optional<UserEntity> byUsername = userRepository.findByUsername("Ivan");
 
-        user = userRepository.save(user);
+            assertTrue(byUsername.isPresent());
+            assertEquals(25, byUsername.get().getAge());
+        }
 
-        Optional<UserEntity> byUsername = userRepository.findByUsername("Ivan");
-        assertTrue(byUsername.isPresent());
-        assertEquals(25, byUsername.get().getAge());
+        @Test
+        @DisplayName("Поиск: по id")
+        void shouldFindById() {
+            Optional<UserEntity> byId = userRepository.findById(user.getId());
 
-        userRepository.deleteById(user.getId());
+            assertTrue(byId.isPresent());
+            assertEquals(25, byId.get().getAge());
+        }
 
-        assertFalse(userRepository.findByUsername("Ivan").isPresent());
-    }
+        @Test
+        @DisplayName("Удаление: удалить пользователя")
+        void shouldDeleteUserById() {
+            Optional<UserEntity> byUsername = userRepository.findByUsername("Ivan");
+            assertTrue(byUsername.isPresent());
 
-    @Test
-    @DisplayName("Сохранить новых пользователей группой меньше, чем batch, найти по id")
-    void shouldSave10NewUsersAndFindById() {
+            userRepository.deleteById(user.getId());
 
-        List<UserEntity> users = IntStream.range(0, 10)
-                .mapToObj(i -> {
-                    return UserEntity.builder()
-                            .name("user" + i)
-                            .email("mail" + i + "@test.com")
-                            .age(i)
-                            .build();
+            assertFalse(userRepository.findByUsername("Ivan").isPresent());
+        }
 
-                })
-                .toList();
-        userRepository.createAll(users);
+        @Test
+        @DisplayName("Поиск: должен найти всех: в кеше и в БД")
+        void shouldFindUsersFromDatabaseAndCache() {
 
-        Long firstId = users.get(0).getId();
-        assertNotNull(firstId);
-        assertTrue(userRepository.findById(firstId).isPresent());
-    }
+            List<UserEntity> users = IntStream.range(0, 60) // больше batch
+                    .mapToObj(i -> {
+                        return UserEntity.builder()
+                                .name("user" + i)
+                                .email("mail" + i + "@test.com")
+                                .age(i)
+                                .build();
 
-    @Test
-    @DisplayName("Сохранить новых пользователей группой больше, чем batch, найти всех")
-    void shouldSave60NewUsersfindAll() {
+                    })
+                    .toList();
 
-        int count = 60;
-        List<UserEntity> users = IntStream.range(0, count)
-                .mapToObj(i -> {
-                    return UserEntity.builder()
-                            .name("user" + i)
-                            .email("mail" + i + "@test.com")
-                            .age(i)
-                            .build();
+            userRepository.createAll(users);
 
-                })
-                .toList();
+            users = IntStream.range(0, 10) // меньше batch
+                    .mapToObj(i -> {
+                        return UserEntity.builder()
+                                .name("newUser" + i)
+                                .email("newMail" + i + "@test.com")
+                                .age(i)
+                                .build();
 
-        userRepository.createAll(users);
-        List<UserEntity> allUsers = userRepository.findAll();
-        assertEquals(count, allUsers.size());
+                    })
+                    .toList();
+
+            userRepository.createAll(users);
+
+            users = userRepository.findAll();
+            assertEquals(71, users.size());
+        }
     }
 }

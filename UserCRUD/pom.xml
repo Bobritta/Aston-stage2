@@ -150,8 +150,11 @@
                         <exclude>**/model/**</exclude>
                         <exclude>**/util/**</exclude>
                         <exclude>**/config/**</exclude>
-                        <exclude>**/*Exception.class</exclude>
+                        <exclude>**/exception/**</exclude>
+                        <!--                        контроллер-заглушка (консольный) по заданию не тестируется-->
+                        <exclude>**/*CommandLineUserMenu.class</exclude>
                         <exclude>**/*ConsoleColors.class</exclude>
+                        <exclude>**/*Main.class</exclude>
                     </excludes>
                 </configuration>
                 <executions>

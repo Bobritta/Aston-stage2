@@ -21,7 +21,11 @@ public class HibernateUtil {
             try {
                 Configuration config = new Configuration().configure("hibernate.cfg.xml");
 
-                config.setProperty("hibernate.connection.url", AppConfig.getDbProperties("url"));
+                String url = AppConfig.getDbProperties("url");
+                if (!url.contains("reWriteBatchedInserts=true")) {
+                    url += (url.contains("?") ? "&" : "?") + "reWriteBatchedInserts=true";
+                }
+                config.setProperty("hibernate.connection.url", url);
                 config.setProperty("hibernate.connection.username", AppConfig.getDbProperties("username"));
                 config.setProperty("hibernate.connection.password", AppConfig.getDbProperties("password"));
                 config.setProperty("hibernate.connection.driver_class", AppConfig.getDbProperties("driver"));

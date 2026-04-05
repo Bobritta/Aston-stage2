@@ -5,18 +5,17 @@ import exception.UniqueConstraintViolationException;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import mapper.UserMapper;
-import model.UserEntity;
 import model.UserCreateDTO;
+import model.UserEntity;
 import model.UserResponseDTO;
 import model.UserUpdateDTO;
 import org.hibernate.HibernateException;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
+import org.hibernate.context.internal.ManagedSessionContext;
 import org.hibernate.exception.ConstraintViolationException;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import repository.UserRepository;
-import repository.UserRepositoryImpl;
 import util.HibernateUtil;
 import util.ValidationUtil;
 
@@ -26,16 +25,22 @@ import java.util.function.Supplier;
 @Slf4j
 public class UserServiceImpl implements UserService {
 
-    private final UserRepository userRepository = new UserRepositoryImpl();
-    private final UserMapper userMapper = UserMapper.INSTANCE;
+    private final UserRepository userRepository;
+    private final UserMapper userMapper;
+    private final Logger logger;
 
-    private static final Logger logger = LoggerFactory.getLogger(UserServiceImpl.class);
+    public UserServiceImpl(UserRepository userRepository, UserMapper userMapper, Logger logger) {
+        this.userRepository = userRepository;
+        this.userMapper = userMapper;
+        this.logger = logger;
+    }
 
-    private <R> R inTransaction(String operationName, Supplier<R> action) {
+    <R> R inTransaction(String operationName, Supplier<R> action) {
         log.debug("Старт транзакции: {}", operationName);
+        Session session = HibernateUtil.getSessionFactory().openSession();
         Transaction transaction = null;
-        Session session = HibernateUtil.getSessionFactory().getCurrentSession();
         try {
+            ManagedSessionContext.bind(session);
             transaction = session.beginTransaction();
             R result = action.get();
             transaction.commit();
@@ -57,6 +62,11 @@ public class UserServiceImpl implements UserService {
             if (transaction != null) transaction.rollback();
             logger.error("Непредвиденная ошибка в '{}': ", operationName, e);
             throw new RuntimeException("Системная ошибка: " + e.getMessage(), e);
+        } finally {
+            ManagedSessionContext.unbind(HibernateUtil.getSessionFactory());
+            if (session != null && session.isOpen()) {
+                session.close();
+            }
         }
     }
 
@@ -122,12 +132,12 @@ public class UserServiceImpl implements UserService {
         logger.debug("Запрос на обновление ID {}: {}", id, dto);
         ValidationUtil.validate(dto);
 
-        UserEntity updatedUserEntity = inTransaction("updateUser", () ->{
-                    UserEntity existingUser = userRepository.findById(id)
-                            .orElseThrow(() -> new EntityNotFoundException("Пользователь с ID " + id + " не найден"));
-                    UserEntity updated = userMapper.updateEntity(existingUser, dto);
-                    return userRepository.save(updated);
-                });
+        UserEntity updatedUserEntity = inTransaction("updateUser", () -> {
+            UserEntity existingUser = userRepository.findById(id)
+                    .orElseThrow(() -> new EntityNotFoundException("Пользователь с ID " + id + " не найден"));
+            UserEntity updated = userMapper.updateEntity(dto, existingUser);
+            return userRepository.save(updated);
+        });
 
         logger.info("Пользователь ID {} успешно обновлен", id);
         return userMapper.toResponseDTO(updatedUserEntity);
@@ -141,7 +151,7 @@ public class UserServiceImpl implements UserService {
                 userRepository.findById(id)
                         .map(user -> {
                             userRepository.deleteById(id);
-                            return user; // Возвращаем объект, чтобы подтвердить, что он был
+                            return user;
                         })
                         .orElseThrow(() -> new EntityNotFoundException("Невозможно удалить: пользователь с ID " + id + " не найден"))
         );

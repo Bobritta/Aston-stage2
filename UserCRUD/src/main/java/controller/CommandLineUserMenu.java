@@ -2,11 +2,14 @@ package controller;
 
 import exception.UniqueConstraintViolationException;
 import exception.handler.GlobalExceptionHandler;
+import mapper.UserMapper;
 import model.UserCreateDTO;
 import model.UserResponseDTO;
 import model.UserUpdateDTO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import repository.UserRepository;
+import repository.UserRepositoryImpl;
 import service.UserService;
 import service.UserServiceImpl;
 
@@ -14,11 +17,18 @@ import java.util.List;
 import java.util.Scanner;
 
 public class CommandLineUserMenu {
-
-    private final UserService userService = new UserServiceImpl();
-    private final Scanner scanner = new Scanner(System.in);
-
     private static final Logger logger = LoggerFactory.getLogger(CommandLineUserMenu.class);
+
+    private final Scanner scanner = new Scanner(System.in);
+    private final UserService userService;
+
+    public CommandLineUserMenu() {
+        this.userService = new UserServiceImpl(
+                new UserRepositoryImpl(),
+                UserMapper.INSTANCE,
+                LoggerFactory.getLogger(UserServiceImpl.class)
+        );
+    }
 
     public void start() {
         logger.info("Приложение запущено");

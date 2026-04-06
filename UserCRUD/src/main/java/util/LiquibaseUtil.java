@@ -22,7 +22,6 @@ public class LiquibaseUtil {
             Liquibase liquibase = new Liquibase("db/changelog/db.changelog-master.xml",
                     new ClassLoaderResourceAccessor(), database);
 
-//            liquibase.dropAll(); //todo: при необходимости очистки при отладке, потом удалить
             liquibase.update("");
             System.out.println("Миграции Liquibase успешно выполнены!");
 

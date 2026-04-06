@@ -27,4 +27,10 @@ public class AppConfig {
         }
         return value;
     }
+
+    //для тестов
+    public static void setDbProperty(String key, String value) {
+        Map<String, String> db = (Map<String, String>) config.get("database");
+        db.put(key, value);
+    }
 }

@@ -15,7 +15,7 @@ import lombok.Builder;
  */
 @Builder
 public record UserUpdateDTO(
-        @NotBlank @Min(0) long id,
+        @Min(0) long id,
         @NotBlank String name,
         @Email String email,
         @Min(0) Integer age) {

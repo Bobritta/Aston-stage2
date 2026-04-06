@@ -25,9 +25,12 @@ public interface UserMapper {
     @Mapping(target = "createdAt", source = "createdAt", qualifiedByName = "instantToString")
     UserResponseDTO toResponseDTO(UserEntity userEntity);
 
-    @Mapping(target = "id", ignore = true)
-    @Mapping(target = "createdAt", ignore = true)
-    UserEntity updateEntity(@MappingTarget UserEntity user, UserUpdateDTO dto);
+    @Mapping(target = "id", source = "existingUser.id")
+    @Mapping(target = "createdAt", source = "existingUser.createdAt")
+    @Mapping(target = "name", source = "dto.name")
+    @Mapping(target = "email", source = "dto.email")
+    @Mapping(target = "age", source = "dto.age")
+    UserEntity updateEntity(UserUpdateDTO dto, UserEntity existingUser);
 
     @Named("instantToString")
     default String instantToString(Instant instant) {
